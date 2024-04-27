@@ -1,0 +1,139 @@
+# 全局配置
+
+`CiteGraphConfig` 可以为所有的 CiteGraph hook 提供全局配置 ([选项](/docs/api))。
+
+```jsx
+<CiteGraphConfig value={options}>
+  <Component/>
+</CiteGraphConfig>
+```
+
+在以下示例中，所有的 CiteGraph hook 都将使用提供的相同的 fetcher 来加载 JSON 数据，默认每 3 秒刷新一次：
+
+```jsx
+import useCiteGraph, { CiteGraphConfig } from 'citegraph'
+
+function Dashboard () {
+  const { data: events } = useCiteGraph('/api/events')
+  const { data: projects } = useCiteGraph('/api/projects')
+  const { data: user } = useCiteGraph('/api/user', { refreshInterval: 0 }) // override
+
+  // ...
+}
+
+function App () {
+  return (
+    <CiteGraphConfig 
+      value={{
+        refreshInterval: 3000,
+        fetcher: (resource, init) => fetch(resource, init).then(res => res.json())
+      }}
+    >
+      <Dashboard />
+    </CiteGraphConfig>
+  )
+}
+```
+
+## 嵌套配置 [#nesting-configurations]
+
+`CiteGraphConfig` 会合并来自父层上下文的配置。它可以接收一个对象式或函数式配置。函数式配置可以从参数中得到父层的配置信息，并返回一个你自定义定制的配置。
+
+### 对象式配置示例 [#object-configuration-example]
+
+```jsx
+import { CiteGraphConfig, useCiteGraphConfig } from 'citegraph'
+
+function App() {
+  return (
+    <CiteGraphConfig
+      value={{
+        dedupingInterval: 100,
+        refreshInterval: 100,
+        fallback: { a: 1, b: 1 },
+      }}
+    >
+      <CiteGraphConfig
+        value={{
+          dedupingInterval: 200, // 这里将会覆盖父层配置，因为这里的优先级更高
+          fallback: { a: 2, c: 2 }, // 这里将与父值合并，因为当前的值是可合并的对象
+        }}
+      >
+        <Page />
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+
+function Page() {
+  const config = useCiteGraphConfig()
+  // {
+  //   dedupingInterval: 200,
+  //   refreshInterval: 100,
+  //   fallback: { a: 2,  b: 1, c: 2 },
+  // }
+}
+```
+
+### 函数式配置示例 [#functional-configuration-example]
+
+```jsx
+import { CiteGraphConfig, useCiteGraphConfig } from 'citegraph'
+
+function App() {
+  return (
+    <CiteGraphConfig
+      value={{
+        dedupingInterval: 100,
+        refreshInterval: 100,
+        fallback: { a: 1, b: 1 },
+      }}
+    >
+      <CiteGraphConfig
+        value={parent => ({
+          dedupingInterval: parent.dedupingInterval * 5,
+          fallback: { a: 2, c: 2 },
+        })}
+      >
+        <Page />
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+
+function Page() {
+  const config = useCiteGraphConfig()
+  // {
+  //   dedupingInterval: 500,
+  //   fallback: { a: 2, c: 2 },
+  // }
+}
+```
+
+## 额外的 API [#extra-apis]
+
+### 缓存 Provider [#cache-provider]
+
+除去以上所列的 [选项](/docs/api)，`CiteGraphConfig` 还接受一个可选的 `provider` 函数。详细信息请参考 [缓存](/docs/advanced/cache) 这一节。
+
+```jsx
+<CiteGraphConfig value={{ provider: () => new Map() }}>
+  <Dashboard />
+</CiteGraphConfig>
+```
+
+### 访问全局配置 [#access-to-global-configurations]
+
+你可以使用 `useCiteGraphConfig` hook 来获取全局配置，以及[`数据更改`](/docs/mutation)和[`缓存`](/docs/advanced/cache)：
+
+```jsx
+import { useCiteGraphConfig } from 'citegraph'
+
+function Component () {
+  const { refreshInterval, mutate, cache, ...restConfig } = useCiteGraphConfig()
+
+  // ...
+}
+```
+
+嵌套配置将会被扩展。如果没有使用 `<CiteGraphConfig>`，将返回默认配置。

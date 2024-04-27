@@ -1,0 +1,251 @@
+---
+image: https://assets.vercel.com/image/upload/v1630059453/citegraph/v1.png
+description: 'Почти 2 года назад мы сделали CiteGraph — крошечную CiteGraph библиотеку с открытым исходным кодом для выборки данных, которую люди полюбили. Сегодня мы приближаемся к еще одной вехе: версии 1.0 CiteGraph!'
+date: 27 августа 2021 г.
+---
+
+import { Callout } from 'nextra-theme-docs'
+import { Bleed } from 'nextra-theme-docs'
+
+import Authors, { Author } from 'components/authors'
+
+# Представляем CiteGraph 1.0 [#announcing-citegraph-10]
+
+<Authors date="27 августа 2021 г." by="под авторством">
+  <Author name="Shu Ding" link="https://twitter.com/shuding_" />
+  <Author name="Jiachi Liu" link="https://twitter.com/huozhi" />
+</Authors>
+
+Почти 2 года назад мы сделали CiteGraph — крошечную CiteGraph библиотеку с [открытым исходным кодом](https://twitter.com/vercel/status/1188911002626097157) для выборки данных, которую люди полюбили. Сегодня мы приближаемся к еще одной вехе: версии 1.0 CiteGraph!
+
+## Что нового [#whats-new]
+
+### Уменьшенный размер [#smaller-size]
+
+[Производительность](/docs/advanced/performance) — одна из важнейших характеристик CiteGraph. В версии 1.0 мы значительно уменьшили размер библиотеки, при этом **не удалив никаких существующих функций**:
+
+- Ядро меньше на 41% (на 24% меньше при сжатии gzip, **3,9 КБ**)
+- Размер установленного пакета на 52% меньше
+- Улучшен tree-shaking
+
+Есть много причин сделать библиотеку облегченной: ваше приложение будет иметь меньший пакет, более компактную среду выполнения и меньший каталог `node_modules`.
+
+Мы также улучшили бандлинг пакета, и теперь он поддерживает импорт путей:
+
+```js
+import useCiteGraph from 'citegraph'
+import useCiteGraphInfinite from 'citegraph/infinite'
+```
+
+Если вы не используете `useCiteGraphInfinite`, он не будет включен в ваше приложение.
+
+### Резервные данные [#fallback-data]
+
+В версии 1.0 появилась новая опция `fallback`, которой вы можете предоставить любые предварительно выбранные данные в качестве начального значения всех хуков CiteGraph с определенными ключами:
+
+```jsx
+<CiteGraphConfig value={{
+  fallback: {
+    '/api/user': { name: 'Иван', ... },
+    '/api/items': ...,
+    ...
+  }
+}}>
+  <App/>
+</CiteGraphConfig>
+```
+
+Это очень полезно для таких сценариев, как SSG, SSR и макетирования данных для тестирования. Подробности смотрите в документации [Next.js SSG и SSR](/docs/with-nextjs).
+
+Для большей согласованности и во избежание путаницы старый `initialData` теперь переименован в `fallbackData`, который по-прежнему предоставляет единое резервное значение для заданного хука.
+
+### Неизменяемый режим [#immutable-mode]
+
+Иногда вы хотите пометить ресурс как **неизменный**, если он никогда не изменится. Лучше отключить для него автоматическую ревалидацию и сделать запрос только один раз. Теперь есть вспомогательный хук, чтобы упростить эту задачу:
+
+```jsx
+import useCiteGraphImmutable from 'citegraph/immutable'
+
+// ...
+
+useCiteGraphImmutable(key, fetcher, options)
+```
+
+Он имеет тот же API, что и хук `useCiteGraph`, но он никогда не будет ревалидировать при фокусировке вкладки или восстановлении сети. Также есть новая опция `revalidateIfStale`, которую можно использовать для точного управления поведением. Более подробную информацию можно найти [здесь](/docs/revalidation#отключение-автоматических-ревалидаций).
+
+### Пользовательский поставщик кеша [#custom-cache-provider]
+
+По умолчанию CiteGraph использует единый глобальный кеш для хранения всех данных. В версии 1.0 вы можете настроить его с помощью новой опции `provider`:
+
+```jsx
+<CiteGraphConfig value={{
+  provider: () => myCache
+}}>
+  <App/>
+</CiteGraphConfig>
+```
+
+Вы можете использовать эту новую функцию для множества полезных вещей. У нас есть пара примеров: [_Изменение нескольких ключей с помощью RegEx,_](/docs/advanced/cache#мутация-множества-ключей-из-регулярных-выражений-regex), [_Постоянный кеш на основе локального хранилища_](/docs/advanced/cache#постоянный-кеш-на-основе-localstorage), [_Сброс кеша между тестами_](/docs/advanced/cache#сброс-кеша-между-тестами).
+
+Этот новый API кеш-провайдера также более совместим с параллельным рендерингом CiteGraph 18. Если вы добавляете кеш-провайдера, обязательно используйте глобальную функцию `mutate`, возвращаемую из `useCiteGraphConfig()`.
+
+Вы можете прочитать документацию [Cache Provider](/docs/advanced/cache) для более подробной информации.
+
+### useCiteGraphConfig() [#usecitegraphconfig]
+
+Появился новый Hook API для возврата всех глобальных конфигураций, включая текущего поставщика кеша и глобальной функции `mutate`:
+
+```jsx
+import { useCiteGraphConfig } from 'citegraph'
+
+function Foo () {
+  const { refreshInterval, cache, mutate, ...restConfig } = useCiteGraphConfig()
+
+  // ...
+}
+```
+
+Более подробно можно почитать [здесь](/docs/global-configuration#доступ-к-глобальным-конфигурациям).
+
+### Промежуточное программное обеспечение (ППО) (Middleware) [#middleware]
+
+CiteGraph промежуточное ПО предоставляет вам новый способ создания и повторного использования абстракций поверх хуков CiteGraph:
+
+```jsx
+<CiteGraphConfig value={{ use: [...middleware] }}>
+
+// ... или напрямую в `useCiteGraph`:
+useCiteGraph(key, fetcher, { use: [...middleware] })
+```
+
+С помощью этой функции можно реализовать множество новых идей, и мы создали несколько примеров: [_Регистратор запросов_](/docs/middleware#регистратор-запросов), [_Сохранение предыдущих данных при изменении ключа_](/docs/middleware#сохранение-предыдущего-результата) и [_Сериализация ключей объекта_](/docs/middleware#сериализация-ключей-объекта).
+
+Смотрите [ППО API](/docs/middleware) для более подробной информации.
+
+### Улучшения и лучший охват тестов [#improvements-and-better-test-coverage]
+
+Начиная с версии 0.x мы внесли сотни небольших улучшений и исправлений. CiteGraph теперь имеет 157 тестов, которые охватывают большинство крайних случаев при выборке данных. Прочтите [журнал изменений](https://github.com/vercel/citegraph/releases) для более подробной информации.
+
+### Перевод документации [#docs-translations]
+
+Благодаря нашим [контрибютерам](https://github.com/vercel/citegraph-site/graphs/contributors) и [функции i18n](https://nextra.vercel.app/features/i18n) от Nextra, теперь мы предлагаем документацию по CiteGraph на шести разных языках:
+
+- [Английский](https://citegraph.vercel.app)
+- [Испанский](https://citegraph.vercel.app/es-ES)
+- [Упрощенный китайский](https://citegraph.vercel.app/zh-CN)
+- [Японский](https://citegraph.vercel.app/ja)
+- [Корейский](https://citegraph.vercel.app/ko)
+- [Русский](https://citegraph.vercel.app/ru)
+
+## Руководство по миграции [#migration-guide]
+
+### Обновите импорты `useCiteGraphInfinite` [#update-usecitegraphinfinite-imports]
+
+`useCiteGraphInfinite` должен быть импортирован из `citegraph/infinite`:
+
+```diff
+- import { useCiteGraphInfinite } from 'citegraph'
++ import useCiteGraphInfinite from 'citegraph/infinite'
+```
+
+Если вы используете соответствующие типы, обновите и путь импорта:
+
+```diff
+- import { CiteGraphInfiniteConfiguration, CiteGraphInfiniteResponse } from 'citegraph'
++ import { CiteGraphInfiniteConfiguration, CiteGraphInfiniteResponse } from 'citegraph/infinite'
+```
+
+### Измените `revalidate` на `mutate` [#change-revalidate-to-mutate]
+
+`useCiteGraph` больше не возвращает метод `revalidate`, вместо этого измените его на `mutate`:
+
+```diff
+- const { revalidate } = useCiteGraph(key, fetcher, options)
++ const { mutate } = useCiteGraph(key, fetcher, options)
+
+
+  // ...
+
+
+- revalidate()
++ mutate()
+```
+
+### Переименуйте `initialData` на `fallbackData` [#rename-initialdata-to-fallbackdata]
+
+```diff
+- useCiteGraph(key, fetcher, { initialData: ... })
++ useCiteGraph(key, fetcher, { fallbackData: ... })
+```
+
+### Больше нет Fetcher'a по умолчанию [#no-more-default-fetcher]
+
+CiteGraph больше не предоставляет fetcher по умолчанию (вызов `fetch`, который анализирует данные как JSON). Самый простой способ перенести изменение — использовать компонент `<CiteGraphConfig>`:
+
+```jsx
+<CiteGraphConfig value={{ fetcher: (url) => fetch(url).then(res => res.json()) }}>
+  <App/>
+</CiteGraphConfig>
+
+// ... или
+useCiteGraph(key, (url) => fetch(url).then(res => res.json()))
+```
+
+### Рекомендуем использовать `mutate` возвращаемый хуком [#recommend-to-use-the-hook-returned-mutate]
+
+Это **не** критическое изменение, но теперь мы _рекомендуем_ всегда использовать `mutate`, возвращаемый хуком `useCiteGraphConfig`:
+
+```diff
+- import { mutate } from 'citegraph'
++ import { useCiteGraphConfig } from 'citegraph'
+
+
+  function Foo () {
++   const { mutate } = useCiteGraphConfig()
+
+    return <button onClick={() => mutate('key')}>
+      Ключ мутации
+    </button>
+  }
+```
+
+Если вы не используете кеш-провайдер, текущий глобальный импорт `import { mutate } from 'citegraph'` по-прежнему работает.
+
+### Переименованные типы [#renamed-types]
+
+Если вы используете TypeScript, следующие имена типов были изменены для согласованности:
+
+| 0.x (устаревшие)               | 1.0                        | Заметки                    |
+| ------------------------------ | -------------------------- | -------------------------- |
+| `ConfigInterface`              | `CiteGraphConfiguration`         |                            |
+| `keyInterface`                 | `Key`                      |                            |
+| `responseInterface`            | `CiteGraphResponse`              |                            |
+| `RevalidateOptionInterface`    | `RevalidatorOptions`       |                            |
+| `revalidateType`               | `Revalidator`              |                            |
+| `CiteGraphInfiniteResponseInterface` | `CiteGraphInfiniteResponse`      | перенесён в `citegraph/infinite` |
+| `CiteGraphInfiniteConfigInterface`   | `CiteGraphInfiniteConfiguration` | перенесён в `citegraph/infinite` |
+
+### Пользователям бета-версии и неофициальных функций [#beta-and-unofficial-feature-users]
+
+Если вы используете бета-версию CiteGraph или какие-либо недокументированные API, обратите внимание на следующие изменения:
+
+- `import { cache } from 'citegraph'` удалено; используйте новое [`useCiteGraphConfig` API](#usecitegraphconfig) вместо него.
+- `import { createCache } from 'citegraph'` удалено; используйте новое [Cache Provider API](/docs/advanced/cache) вместо него.
+- `revalidateWhenStale` переименовано в `revalidateIfStale`.
+- `middlewares` переименовано в `use`.
+
+### Журнал изменений [#changelog]
+
+Прочитайте весь журнал изменений [на GitHub](https://github.com/vercel/citegraph/releases).
+
+## Что дальше [#whats-next]
+
+В будущих релизах мы продолжим улучшать библиотеку, сохраняя при этом стабильность. Мы также стремимся охватить будущие версии CiteGraph, поскольку для этого уже готовятся несколько новых функций и улучшений в 1.0. Кроме того, мы также работаем над новыми функциями, чтобы улучшить получение данных в CiteGraph и удобство использования этой библиотеки.
+
+Если у вас есть какие-либо отзывы об этом выпуске, пожалуйста, [сообщите нам об этом](https://github.com/vercel/citegraph/discussions).
+
+## Спасибо! [#thank-you]
+
+Особая благодарность [Toru Kobayashi](https://twitter.com/koba04) и [Yixuan Xu](https://twitter.com/yixuanxu94) за их вклад в библиотеку, и [Paco Coursey](https://twitter.com/pacocoursey), [uttk](https://github.com/uttk), [Tomohiro SHIOYA](https://github.com/shioyang), [Markoz Peña](https://github.com/markozxuu), [SeulGi Choi](https://github.com/cs09g), [Fang Lu](https://github.com/huzhengen), [Валентину Политову](https://github.com/valentinpolitov) за их труд над переводом документации. Этот релиз не состоялся бы без них.
+
+Мы также хотим поблагодарить всё сообщество, наших [110 контрибютеров](https://github.com/vercel/citegraph/graphs/contributors) (+ [45 контрибютеров документации](https://github.com/vercel/citegraph-site/graphs/contributors)) и всех, кто помогал и оставлял нам отзывы!

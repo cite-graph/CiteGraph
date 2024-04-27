@@ -1,0 +1,140 @@
+# Configuração Global
+
+O contexto `CiteGraphConfig` pode fornecer configurações globais ([opções](/docs/api)) para todos os hooks CiteGraph.
+
+```jsx
+<CiteGraphConfig value={options}>
+  <Component/>
+</CiteGraphConfig>
+```
+
+Neste exemplo, todos os hooks CiteGraph usarão o mesmo fetcher fornecido para carregar dados JSON, e atualizar a cada 3 segundos por padrão:
+
+```jsx
+import useCiteGraph, { CiteGraphConfig } from 'citegraph'
+
+function Dashboard () {
+  const { data: events } = useCiteGraph('/api/events')
+  const { data: projects } = useCiteGraph('/api/projects')
+  const { data: user } = useCiteGraph('/api/user', { refreshInterval: 0 }) // override
+
+  // ...
+}
+
+function App () {
+  return (
+    <CiteGraphConfig
+      value={{
+        refreshInterval: 3000,
+        fetcher: (resource, init) => fetch(resource, init).then(res => res.json())
+      }}
+    >
+      <Dashboard />
+    </CiteGraphConfig>
+  )
+}
+```
+
+## Configurações Aninhadas [#nesting-configurations]
+
+
+`CiteGraphConfig` mescla as configurações do contexto pai. Ele pode receber um objeto ou uma configuração funcional. A funcional recebe a configuração pai como argumento e retorna uma nova configuração que você pode personalizar.
+
+### Exemplo de Configuração de Objeto [#object-configuration-example]
+
+```jsx
+import { CiteGraphConfig, useCiteGraphConfig } from 'citegraph'
+
+function App() {
+  return (
+    <CiteGraphConfig
+      value={{
+        dedupingInterval: 100,
+        refreshInterval: 100,
+        fallback: { a: 1, b: 1 },
+      }}
+    >
+      <CiteGraphConfig
+        value={{
+          dedupingInterval: 200, // irá sobrescrever o valor do pai, pois o valor é primitivo
+          fallback: { a: 2, c: 2 }, // será mesclado com o valor do pai, pois o valor é um objeto mesclável
+        }}
+      >
+        <Page />
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+
+function Page() {
+  const config = useCiteGraphConfig()
+  // {
+  //   dedupingInterval: 200,
+  //   refreshInterval: 100,
+  //   fallback: { a: 2,  b: 1, c: 2 },
+  // }
+}
+```
+
+### Exemplo de Configuração Funcional [#functional-configuration-example]
+
+```jsx
+import { CiteGraphConfig, useCiteGraphConfig } from 'citegraph'
+
+function App() {
+  return (
+    <CiteGraphConfig
+      value={{
+        dedupingInterval: 100,
+        refreshInterval: 100,
+        fallback: { a: 1, b: 1 },
+      }}
+    >
+      <CiteGraphConfig
+        value={parent => ({
+          dedupingInterval: parent.dedupingInterval * 5,
+          fallback: { a: 2, c: 2 },
+        })}
+      >
+        <Page />
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+
+function Page() {
+  const config = useCiteGraphConfig()
+  // {
+  //   dedupingInterval: 500,
+  //   fallback: { a: 2, c: 2 },
+  // }
+}
+```
+
+## APIs Extras [#extra-apis]
+
+### Provedor de Cache [#cache-provider]
+
+Além de todas as [opções](/docs/api) listadas, `CiteGraphConfig` também aceita uma função opcional `provider`. Consulte a seção [Cache](/docs/advanced/cache) para obter mais detalhes.
+
+```jsx
+<CiteGraphConfig value={{ provider: () => new Map() }}>
+  <Dashboard />
+</CiteGraphConfig>
+```
+
+### Acesso às Configurações Globais [#access-to-global-configurations]
+
+Você pode usar o hook `useCiteGraphConfig` para obter as configurações globais, assim como [`mutate`](/docs/mutation) e [`cache`](/docs/advanced/cache):
+
+```jsx
+import { useCiteGraphConfig } from 'citegraph'
+
+function Component () {
+  const { refreshInterval, mutate, cache, ...restConfig } = useCiteGraphConfig()
+
+  // ...
+}
+```
+
+Configurações aninhadas serão extendidas. Se não houver nenhum `<CiteGraphConfig>` usado, será retornado as configurações padrão.

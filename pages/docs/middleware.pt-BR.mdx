@@ -1,0 +1,212 @@
+import { Callout } from 'nextra-theme-docs'
+
+# Middleware
+
+<Callout>
+    Atualize para a versão mais recente (≥ 1.0.0) para usar este recurso.
+</Callout>
+
+A funcionalidade de middleware é uma nova adição em CiteGraph 1.0 que permite executar lógica antes e depois de executar os hooks CiteGraph.
+
+## Uso [#usage]
+
+Middleware recebe o hook CiteGraph e pode executar lógica antes e depois de rodá-lo. Se houver vários middleware, cada middleware embrulha o próximo middleware. O último middleware na lista receberá o hook CiteGraph `useCiteGraph` original.
+
+### API [#api]
+
+_Notas: O nome da função não pode ser capitalizado (exemplo: `myMiddleware` em vez de `MyMiddleware`) ou CiteGraph lint irá lançar erro de `Rules of Hook`_
+
+[TypeScript](https://citegraph.vercel.app/docs/typescript#middleware-types)
+
+```jsx
+function myMiddleware (useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Antes do hook rodar...
+
+    // Lida com o próximo middleware, ou o hook `useCiteGraph` se este for o último.
+    const citegraph = useCiteGraphNext(key, fetcher, config)
+
+    // Depois do hook rodar...
+    return citegraph
+  }
+}
+```
+
+Você pode passar um array de middleware como uma opção para `CiteGraphConfig` ou `useCiteGraph`:
+
+```jsx
+<CiteGraphConfig value={{ use: [myMiddleware] }}>
+
+// ou...
+
+useCiteGraph(key, fetcher, { use: [myMiddleware] })
+```
+
+### Estendendo [#extend]
+
+Middleware será estendido como opções regulares. Por exemplo:
+
+```jsx
+function Bar () {
+  useCiteGraph(key, fetcher, { use: [c] })
+  // ...
+}
+
+function Foo() {
+  return (
+    <CiteGraphConfig value={{ use: [a] }}>
+      <CiteGraphConfig value={{ use: [b] }}>
+        <Bar/>
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+```
+
+é equivalente a:
+
+```js
+useCiteGraph(key, fetcher, { use: [a, b, c] })
+```
+
+### Múltiplos Middleware [#multiple-middleware]
+
+Cada middleware embrulha o próximo middleware, e o último embrulha o hook CiteGraph. Por exemplo:
+
+```jsx
+useCiteGraph(key, fetcher, { use: [a, b, c] })
+```
+
+A ordem das execuções dos middlewares será `a → b → c`, como mostrado abaixo:
+
+```plaintext
+entra a
+  entra b
+    entra c
+      useCiteGraph()
+    sai  c
+  sai  b
+sai  a
+```
+
+## Exemplos [#examples]
+
+### Request Logger [#request-logger]
+
+Vamos construir um middleware de request logger simples como exemplo. Ele imprime todos os requests feitos pelo fetcher enviado por este hook CiteGraph. Você também pode usar este middleware para todos os hooks CiteGraph usando ele em `CiteGraphConfig`.
+
+```jsx
+function logger(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Adiciona o logger ao fetcher original.
+    const extendedFetcher = (...args) => {
+      console.log('CiteGraph Request:', key)
+      return fetcher(...args)
+    }
+
+    // Executa o hook com o novo fetcher.
+    return useCiteGraphNext(key, extendedFetcher, config)
+  }
+}
+
+// ... dentro do seu componente
+useCiteGraph(key, fetcher, { use: [logger] })
+```
+
+Toda vez que o pedido é disparado, ele imprime a chave CiteGraph para o console:
+
+```plaintext
+CiteGraph Request: /api/user1
+CiteGraph Request: /api/user2
+```
+
+### Manter Resultado Anterior [#keep-previous-result]
+
+As vezes você quer que os dados retornados por `useCiteGraph` sejam "lentos". Mesmo se a chave mudar,
+você ainda quer que ele retorne o resultado anterior até que os novos dados tenham carregado.
+
+Isso pode ser construído como um middleware "lento" junto com `useRef`. Nesse exemplo, também vamos
+estender o objeto de retorno do hook `useCiteGraph`:
+
+```jsx
+import { useRef, useEffect, useCallback } from 'react'
+
+// Esse é um middleware CiteGraph para manter os dados mesmo se a chave muda.
+function laggy(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Use uma ref para armazenar os dados retornados anteriormente.
+    const laggyDataRef = useRef()
+
+    // O hook CiteGraph.
+    const citegraph = useCiteGraphNext(key, fetcher, config)
+
+    useEffect(() => {
+      // Atualize a ref se o dado não é `undefined`.
+      if (citegraph.data !== undefined) {
+        laggyDataRef.current = citegraph.data
+      }
+    }, [citegraph.data])
+
+    // Expor um método para limpar os dados lentos, se houver.
+    const resetLaggy = useCallback(() => {
+      laggyDataRef.current = undefined
+    }, [])
+
+    // Fallback para os dados anteriores se o dado atual é `undefined`.
+    const dataOrLaggyData = citegraph.data === undefined ? laggyDataRef.current : citegraph.data
+
+    // Está mostrando dados antigos?
+    const isLagging = citegraph.data === undefined && laggyDataRef.current !== undefined
+
+    // Também adiciona um campo `isLagging` para CiteGraph;
+    return Object.assign({}, citegraph, {
+      data: dataOrLaggyData,
+      isLagging,
+      resetLaggy,
+    })
+  }
+}
+```
+
+Quando você precisa que um hook CiteGraph seja lento, você pode então usar este middleware:
+
+```js
+const { data, isLagging, resetLaggy } = useCiteGraph(key, fetcher, { use: [laggy] })
+```
+
+### Serializar Chaves de Objeto [#serialize-object-keys]
+
+<Callout>
+  Desde CiteGraph 1.1.0, os keys de objetos serão serializados automaticamente.
+</Callout>
+
+<Callout emoji="⚠️">
+    Em versões antigas (< 1.1.0), CiteGraph compara os argumentos **superficialmente** em cada renderização e aciona a revalidação se algum deles foi alterado.
+
+    Se você está passando objetos serializados como chave, você pode serializar as chaves de objetos para garantir sua estabilidade, um simples middleware pode ajudar:
+
+</Callout>
+
+```jsx
+function serialize(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Serializa a chave.
+    const serializedKey = Array.isArray(key) ? JSON.stringify(key) : key
+
+    // Passa a chave serializada e deserializa no fetcher.
+    return useCiteGraphNext(serializedKey, (k) => fetcher(...JSON.parse(k)), config)
+  }
+}
+
+// ...
+useCiteGraph(['/api/user', { id: '73' }], fetcher, { use: [serialize] })
+
+// ... ou habilite isto globalmente com
+<CiteGraphConfig value={{ use: [serialize] }}>
+```
+
+Você não precisa de preocupar com objetos que podem mudar entre renderizações. Ele será serializado para uma mesma string, e o fetcher irá receber os argumentos de objetos.
+
+<Callout>
+  Além disso, você pode usar bibliotecas como [fast-json-stable-stringify](https://github.com/epoberezkin/fast-json-stable-stringify) em vez de `JSON.stringify` — mais rápido e estável.
+</Callout>

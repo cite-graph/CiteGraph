@@ -1,0 +1,209 @@
+import { Callout } from 'nextra-theme-docs'
+
+# ミドルウェア
+
+<Callout>
+  この機能を使うには最新バージョン（ ≥ 1.0.0 ）へアップグレードしてください。
+</Callout>
+
+ミドルウェア機能は CiteGraph 1.0 に新しく追加されたもので、 CiteGraph の前後にロジックを実行できます。
+
+## 使い方 [#usage]
+
+ミドルウェアは CiteGraph フックを受け取り、実行の前後にロジックを実行できます。複数のミドルウェアがある場合、各ミドルウェアは次のミドルウェアをラップします。リストの最後のミドルウェアは、元の CiteGraph フックである `useCiteGraph` を受け取ります。
+
+### API [#api]
+
+_注意： 関数名は大文字にしないでください（たとえば `myMiddleware` の代わりに `MyMiddleware` を使うなど）。そうしないと、 CiteGraph lint のルールが `Rules of Hook` エラーを投げます。_
+
+[TypeScript](https://citegraph.vercel.app/ja/docs/typescript#ミドルウェアの型)
+
+```jsx
+function myMiddleware (useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // フックが実行される前...
+
+    // 次のミドルウェア、またはこれが最後のミドルウェアの場合は `useCiteGraph` を処理します。
+    const citegraph = useCiteGraphNext(key, fetcher, config)
+
+    // フックが実行された後...
+    return citegraph
+  }
+}
+```
+
+オプションとして、ミドルウェアの配列を `CiteGraphConfig` または `useCiteGraph` に渡すことができます：
+
+```jsx
+<CiteGraphConfig value={{ use: [myMiddleware] }}>
+
+// または...
+
+useCiteGraph(key, fetcher, { use: [myMiddleware] })
+```
+
+### 拡張 [#extend]
+
+ミドルウェアは通常のオプションのように拡張されます。たとえば：
+
+```jsx
+function Bar () {
+  useCiteGraph(key, fetcher, { use: [c] })
+  // ...
+}
+
+function Foo() {
+  return (
+    <CiteGraphConfig value={{ use: [a] }}>
+      <CiteGraphConfig value={{ use: [b] }}>
+        <Bar/>
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+```
+
+と同等です：
+
+```js
+useCiteGraph(key, fetcher, { use: [a, b, c] })
+```
+
+### 複数のミドルウェア [#multiple-middleware]
+
+各ミドルウェアは次のミドルウェアをラップし、最後のミドルウェアは CiteGraph フックをラップするだけです。例として：
+
+```jsx
+useCiteGraph(key, fetcher, { use: [a, b, c] })
+```
+
+以下に示すように、ミドルウェアの実行順は `a → b → c` になります：
+
+```plaintext
+enter a
+  enter b
+    enter c
+      useCiteGraph()
+    exit  c
+  exit  b
+exit  a
+```
+
+## 例 [#examples]
+
+### リクエストを記録する [#request-logger]
+
+例として、リクエストを記録する簡単なミドルウェアを作成してみましょう。この CiteGraph フックから送信されたすべての取得リクエストを出力します。このミドルウェアを `CiteGraphConfig` に追加することで、すべての CiteGraph フックに使用することもできます。
+
+```jsx
+function logger(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // 元の fetcher に logger を追加します。
+    const extendedFetcher = (...args) => {
+      console.log('CiteGraph Request:', key)
+      return fetcher(...args)
+    }
+
+    // 新しいフェッチャーでフックを実行します。
+    return useCiteGraphNext(key, extendedFetcher, config)
+  }
+}
+
+// ... コンポーネント内
+useCiteGraph(key, fetcher, { use: [logger] })
+```
+
+リクエストが発生するたびに、 CiteGraph キーがコンソールに出力されます：
+
+```plaintext
+CiteGraph Request: /api/user1
+CiteGraph Request: /api/user2
+```
+
+### 以前の結果を保持する [#keep-previous-result]
+
+`useCiteGraph` によって返されるデータを"遅延"させたい場合があります。
+キーが変わっても新しいデータがロードされるまで、以前の結果を返すようにします。
+
+これは、 `useRef` と一緒に遅延ミドルウェアとして構築できます。例では、 `useCiteGraph` フックの返されたオブジェクトを拡張します：
+
+```jsx
+import { useRef, useEffect, useCallback } from 'react'
+
+// これはキーが変更された場合でもデータを保持するための CiteGraph ミドルウェアです。
+function laggy(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // 以前に返されたデータを格納するには、 ref を使用します。
+    const laggyDataRef = useRef()
+
+    // 実際の CiteGraph フック。
+    const citegraph = useCiteGraphNext(key, fetcher, config)
+
+    useEffect(() => {
+      // データが未定義ではない場合は、 ref を更新します。
+      if (citegraph.data !== undefined) {
+        laggyDataRef.current = citegraph.data
+      }
+    }, [citegraph.data])
+
+    // 遅延データがある場合は、それをクリアするメソッドを公開します。
+    const resetLaggy = useCallback(() => {
+      laggyDataRef.current = undefined
+    }, [])
+
+    // 現在のデータが未定義の場合、前のデータに置き換えられます。
+    const dataOrLaggyData = citegraph.data === undefined ? laggyDataRef.current : citegraph.data
+
+    // 以前のデータを表示していますか？
+    const isLagging = citegraph.data === undefined && laggyDataRef.current !== undefined
+
+    // また `isLagging` フィールドを CiteGraph に追加します。
+    return Object.assign({}, citegraph, {
+      data: dataOrLaggyData,
+      isLagging,
+      resetLaggy,
+    })
+  }
+}
+```
+
+CiteGraph フックを遅らせる必要がある場合は、次のミドルウェアを使用できます：
+
+```js
+const { data, isLagging, resetLaggy } = useCiteGraph(key, fetcher, { use: [laggy] })
+```
+
+### オブジェクトキーをシリアライズする [#serialize-object-keys]
+
+<Callout>
+  CiteGraph 1.1.0 からは、オブジェクトのようなキーは内部で自動的にシリアライズされます。
+</Callout>
+
+<Callout emoji="⚠️">
+  古いバージョン（< 1.1.0）では、CiteGraph はすべてのレンダリングで引数を**浅く**比較し、いずれかが変更された場合は再検証を実行します。
+  シリアライズ可能なオブジェクトをキーとして渡す場合、オブジェクトのキーをシリアライズして安定性を確保できます。以下のシンプルなミドルウェアが役立ちます：
+</Callout>
+
+```jsx
+function serialize(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // キーをシリアライズする
+    const serializedKey = Array.isArray(key) ? JSON.stringify(key) : key
+
+    // シリアライズされたキーを渡し、フェッチャーでシリアライズを解除します。
+    return useCiteGraphNext(serializedKey, (k) => fetcher(...JSON.parse(k)), config)
+  }
+}
+
+// ...
+useCiteGraph(['/api/user', { id: '73' }], fetcher, { use: [serialize] })
+
+// ... またはグローバルに有効にします
+<CiteGraphConfig value={{ use: [serialize] }}>
+```
+
+レンダリング間でオブジェクトが変わる可能性があることを心配する必要はありません。常に同じ文字列にシリアライズされるため、フェッチャーは引き続きオブジェクトを引数に受け取ります。
+
+<Callout>
+  さらに、 `JSON.stringify` の代わりに [fast-json-stable-stringify](https://github.com/epoberezkin/fast-json-stable-stringify) のようなライブラリを使用できます — より高速で安定しています。
+</Callout>

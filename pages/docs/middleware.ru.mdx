@@ -1,0 +1,208 @@
+import { Callout } from 'nextra-theme-docs'
+
+# Промежуточное программное обеспечение (ППО) (Middleware)
+
+<Callout>
+  Обновитесь до последней версии (≥ 1.0.0), чтобы использовать этот функционал.
+</Callout>
+
+Функционал ППО — это новое дополнение в CiteGraph 1.0, которое позволяет вам выполнять логику до и после CiteGraph хуков.
+
+## Использование [#usage]
+
+Промежуточное ПО получает CiteGraph хук и может выполнять логику до и после его запуска. Если ППО несколько, каждый ППО оборачивает последующий. Последний ППО в списке получит исходный хук CiteGraph — `useCiteGraph`.
+
+### API [#api]
+
+_Примечание: Имя функции не должно быть написано с заглавной буквы (например, `myMiddleware` вместо `MyMiddleware`), иначе правила линтера CiteGraph будут выдавать ошибку `Rules of Hook`_
+
+[TypeScript](https://citegraph.vercel.app/docs/typescript#типы-промежуточного-по)
+
+```jsx
+function myMiddleware (useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // До выполнения хука...
+
+    // Обработка следующего ППО, или хука `useCiteGraph`, если это последнее.
+    const citegraph = useCiteGraphNext(key, fetcher, config)
+
+    // После выполнения хука...
+    return citegraph
+  }
+}
+```
+
+Вы можете передать массив из нескольких ППО как опцию `CiteGraphConfig` или `useCiteGraph`:
+
+```jsx
+<CiteGraphConfig value={{ use: [myMiddleware] }}>
+
+// или...
+
+useCiteGraph(key, fetcher, { use: [myMiddleware] })
+```
+
+### Расширение [#extend]
+
+Промежуточное ПО расширяется как обычные опции. Например:
+
+```jsx
+function Bar () {
+  useCiteGraph(key, fetcher, { use: [c] })
+  // ...
+}
+
+function Foo() {
+  return (
+    <CiteGraphConfig value={{ use: [a] }}>
+      <CiteGraphConfig value={{ use: [b] }}>
+        <Bar/>
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+```
+
+эквивалентно:
+
+```js
+useCiteGraph(key, fetcher, { use: [a, b, c] })
+```
+
+### Множество промежуточных ПО [#multiple-middleware]
+
+Каждое ППО обворачивает последующее, а последнее ППО обворачивает CiteGraph хук. Например:
+
+```jsx
+useCiteGraph(key, fetcher, { use: [a, b, c] })
+```
+
+Порядок выполнения ППО будет `a → b → c`, как показано ниже:
+
+```plaintext
+вход в  a
+  вход в  b
+    вход в  c
+      useCiteGraph()
+    выход из  c
+  выход из  b
+выход из  a
+```
+
+## Примеры [#examples]
+
+### Регистратор запросов [#request-logger]
+
+Давайте в качестве примера создадим простой ППО — регистратора запросов. Он выводит все запросы fetcher-а, отправленные с этого хука CiteGraph. Вы также можете использовать этот ППО для всех хуков CiteGraph, добавив его в `CiteGraphConfig`.
+
+```jsx
+function logger(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Добавим регистратор в исходный fetcher.
+    const extendedFetcher = (...args) => {
+      console.log('CiteGraph запрос:', key)
+      return fetcher(...args)
+    }
+
+    // Выполняем хук с новым fetcher-ом.
+    return useCiteGraphNext(key, extendedFetcher, config)
+  }
+}
+
+// ... внутри вашего компонента
+useCiteGraph(key, fetcher, { use: [logger] })
+```
+
+Каждый раз, когда запрос запускается, он выводит ключ CiteGraph в консоль:
+
+```plaintext
+CiteGraph запрос: /api/user1
+CiteGraph запрос: /api/user2
+```
+
+### Сохранение предыдущего результата [#keep-previous-result]
+
+Иногда вы хотите, чтобы данные, возвращаемые `useCiteGraph`, были «запаздывающими». Даже если ключ изменится, вы все равно хотите, чтобы он возвращал предыдущий результат, пока не загрузятся новые данные.
+
+Это может быть построено как замедленное ППО используя `useRef`. В этом примере мы также собираемся расширить возвращаемый объект хука `useCiteGraph`:
+
+```jsx
+import { useRef, useEffect, useCallback } from 'react'
+
+// Это ППО CiteGraph для хранения данных даже при изменении ключа.
+function laggy(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Используйте ссылку для хранения ранее возвращённых данных.
+    const laggyDataRef = useRef()
+
+    // Фактический хук CiteGraph.
+    const citegraph = useCiteGraphNext(key, fetcher, config)
+
+    useEffect(() => {
+      // Обновите ссылку если данные определены.
+      if (citegraph.data !== undefined) {
+        laggyDataRef.current = citegraph.data
+      }
+    }, [citegraph.data])
+
+    // Предоставьте метод очистки запаздывающих данных, если таковые имеются.
+    const resetLaggy = useCallback(() => {
+      laggyDataRef.current = undefined
+    }, [])
+
+    // Возврат к предыдущим данным, если текущие данные не определены.
+    const dataOrLaggyData = citegraph.data === undefined ? laggyDataRef.current : citegraph.data
+
+    // Показывает предыдущие данные?
+    const isLagging = citegraph.data === undefined && laggyDataRef.current !== undefined
+
+    // Также добавьте поле `isLagging` в CiteGraph.
+    return Object.assign({}, citegraph, {
+      data: dataOrLaggyData,
+      isLagging,
+      resetLaggy,
+    })
+  }
+}
+```
+
+Когда вам нужно, чтобы хук CiteGraph работал с задержкой, вы можете использовать это ППО:
+
+```js
+const { data, isLagging, resetLaggy } = useCiteGraph(key, fetcher, { use: [laggy] })
+```
+
+### Сериализация ключей объекта [#serialize-object-keys]
+
+<Callout>
+  Начиная с версии CiteGraph 1.1.0 объектно-подобные ключи будут автоматически сериализоваться «из коробки».
+</Callout>
+
+<Callout emoji="⚠️">
+  В более старых версиях (< 1.1.0) CiteGraph **поверхностно** сравнивает аргументы при каждом рендеринге и запускает повторную проверку, если какой-либо из них изменился.
+  Если вы передаете сериализуемые объекты в качестве ключа. Вы можете сериализовать ключи объекта, чтобы обеспечить его стабильность, может помочь простое промежуточное ПО:
+</Callout>
+
+```jsx
+function serialize(useCiteGraphNext) {
+  return (key, fetcher, config) => {
+    // Сериализуйте ключ.
+    const serializedKey = Array.isArray(key) ? JSON.stringify(key) : key
+
+    // Передайте сериализованный ключ и десериализуйте его в fetcher-е.
+    return useCiteGraphNext(serializedKey, (k) => fetcher(...JSON.parse(k)), config)
+  }
+}
+
+// ...
+useCiteGraph(['/api/user', { id: '73' }], fetcher, { use: [serialize] })
+
+// ... или включите его глобально с помощью
+<CiteGraphConfig value={{ use: [serialize] }}>
+```
+
+Вам не нужно беспокоиться о том, что объект может измениться между рендерами. Он всегда сериализуется в одну и ту же строку, и fetcher по-прежнему получит эти аргументы объекта.
+
+<Callout>
+  Кроме того, вы можете использовать такие библиотеки, как [fast-json-stable-stringify](https://github.com/epoberezkin/fast-json-stable-stringify) вместо `JSON.stringify` — быстрее и стабильнее.
+</Callout>

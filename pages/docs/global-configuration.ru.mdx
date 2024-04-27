@@ -1,0 +1,141 @@
+# Глобальная конфигурация
+
+Контекст `CiteGraphConfig` может предоставить глобальные конфигурации ([опции](/docs/api#опции)) для всех CiteGraph хуков.
+
+```jsx
+<CiteGraphConfig value={options}>
+  <Component/>
+</CiteGraphConfig>
+```
+
+В этом примере все CiteGraph хуки будут использовать один и тот же fetcher, предоставленный для загрузки данных JSON, и по умолчанию обновляться каждые 3 секунды:
+
+```jsx
+import useCiteGraph, { CiteGraphConfig } from 'citegraph'
+
+function Dashboard () {
+  const { data: events } = useCiteGraph('/api/events')
+  const { data: projects } = useCiteGraph('/api/projects')
+  const { data: user } = useCiteGraph('/api/user', { refreshInterval: 0 }) // переопределение
+
+  // ...
+}
+
+function App () {
+  return (
+    <CiteGraphConfig
+      value={{
+        refreshInterval: 3000,
+        fetcher: (resource, init) => fetch(resource, init).then(res => res.json())
+      }}
+    >
+      <Dashboard />
+    </CiteGraphConfig>
+  )
+}
+```
+
+## Вложение конфигураций [#nesting-configurations]
+
+`CiteGraphConfig` объединяет конфигурацию из родительского контекста. Он может принимать либо объект, либо функциональную конфигурацию. Функциональная получает в качестве аргумента родительскую конфигурацию и возвращает новую конфигурацию, которую вы можете настроить самостоятельно.
+
+### Пример объектной конфигурации [#object-configuration-example]
+
+```jsx
+import { CiteGraphConfig, useCiteGraphConfig } from 'citegraph'
+
+function App() {
+  return (
+    <CiteGraphConfig
+      value={{
+        dedupingInterval: 100,
+        refreshInterval: 100,
+        fallback: { a: 1, b: 1 },
+      }}
+    >
+      <CiteGraphConfig
+        value={{
+          dedupingInterval: 200, // переопределит родительское значение, поскольку значение является примитивным
+          fallback: { a: 2, c: 2 }, // будет сливаться с родительским значением, поскольку значение является объединяемым объектом
+        }}
+      >
+        <Page />
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+
+function Page() {
+  const config = useCiteGraphConfig()
+  // {
+  //   dedupingInterval: 200,
+  //   refreshInterval: 100,
+  //   fallback: { a: 2,  b: 1, c: 2 },
+  // }
+}
+```
+
+### Пример функциональной конфигурации [#functional-configuration-example]
+
+```jsx
+import { CiteGraphConfig, useCiteGraphConfig } from 'citegraph'
+
+function App() {
+  return (
+    <CiteGraphConfig
+      value={{
+        dedupingInterval: 100,
+        refreshInterval: 100,
+        fallback: { a: 1, b: 1 },
+      }}
+    >
+      <CiteGraphConfig
+        value={parent => ({
+          dedupingInterval: parent.dedupingInterval * 5,
+          fallback: { a: 2, c: 2 },
+        })}
+      >
+        <Page />
+      </CiteGraphConfig>
+    </CiteGraphConfig>
+  )
+}
+
+function Page() {
+  const config = useCiteGraphConfig()
+  // {
+  //   dedupingInterval: 500,
+  //   fallback: { a: 2, c: 2 },
+  // }
+}
+```
+
+## Дополнительные API [#extra-apis]
+
+### Провайдер кеша [#cache-provider]
+
+Помимо всех перечисленных [опций](/docs/api#опции), `CiteGraphConfig` также принимает опциональную функцию `provider`.
+Пожалуйста, обратитесь к разделу [Кеш](/docs/advanced/cache) для более подробной информации.
+
+```jsx
+<CiteGraphConfig value={{ provider: () => new Map() }}>
+  <Dashboard />
+</CiteGraphConfig>
+```
+
+### Доступ к глобальным конфигурациям [#access-to-global-configurations]
+
+Вы можете использовать ловушку `useCiteGraphConfig` для получения глобальных конфигураций,
+а также [`mutate`](/docs/mutation) и [`cache`](/docs/advanced/cache):
+
+```jsx
+import { useCiteGraphConfig } from 'citegraph'
+
+function Component () {
+  const { refreshInterval, mutate, cache, ...restConfig } = useCiteGraphConfig()
+
+  // ...
+}
+```
+
+Вложенные конфигурации будут расширены. Если не используется `<CiteGraphConfig>`, вернётся значение по умолчанию.
