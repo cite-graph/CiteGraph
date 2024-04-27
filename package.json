@@ -7,7 +7,8 @@
     "dev": "next",
     "debug": "NODE_OPTIONS='--inspect' next",
     "start": "next start",
-    "build": "next build"
+    "build": "next build",
+    "postbuild": "next-sitemap"
   },
   "author": "CiteGraph",
   "license": "MIT",
@@ -16,6 +17,7 @@
     "focus-visible": "^5.2.0",
     "intersection-observer": "^0.12.2",
     "next": "^13.2.4",
+    "next-sitemap": "^4.2.3",
     "nextra": "^2.13.4",
     "nextra-theme-docs": "^2.13.4",
     "react": "^18.3.1",

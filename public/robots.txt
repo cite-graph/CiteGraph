@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://citegraph.org
+
+# Sitemaps
+Sitemap: https://citegraph.org/sitemap.xml
