@@ -102,7 +102,7 @@ const themeConfig = {
         <meta name="apple-mobile-web-app-title" content="CiteGraph" />
         <meta name="description" content={ogDescription} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@vercel" />
+        <meta name="twitter:site" content="@citegraph" />
         <meta name="twitter:image" content={ogImage} />
         <meta property="og:title" content={ogTitle} />
         <meta property="og:description" content={ogDescription} />

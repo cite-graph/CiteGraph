@@ -1,7 +1,7 @@
 {
-  "name": "citegraph-site",
+  "name": "citegraph",
   "version": "1.0.0",
-  "description": "",
+  "description": "CiteGraph - Visualization tools for research community",
   "main": "index.js",
   "scripts": {
     "dev": "next",
