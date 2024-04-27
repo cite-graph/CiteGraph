@@ -18,9 +18,9 @@ import {
 /** @type {import('nextra-theme-docs').DocsThemeConfig} */
 const themeConfig = {
   project: {
-    link: "https://github.com/vercel/citegraph",
+    link: "https://github.com/cite-graph/citegraph",
   },
-  docsRepositoryBase: "https://github.com/vercel/citegraph-site/blob/main",
+  docsRepositoryBase: "https://github.com/cite-graph/citegraph-site/blob/main",
   useNextSeoProps() {
     return {
       titleTemplate: "%s – CiteGraph",

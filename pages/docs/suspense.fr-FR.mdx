@@ -71,8 +71,8 @@ function Profile () {
 }
 ```
 
-Si vous voulez lire plus de détails techniques sur cette restriction, consultez [la discussion ici](https://github.com/vercel/citegraph/pull/357#issuecomment-627089889).
+Si vous voulez lire plus de détails techniques sur cette restriction, consultez [la discussion ici](https://github.com/cite-graph/citegraph/pull/357#issuecomment-627089889).
 
 ### Rendu côté serveur [#server-side-rendering]
 
-Lorsque vous utilisez le mode suspense côté serveur (y compris le pré-rendu dans Next.js), il est **obligatoire** de fournir les données initiales via [fallbackData ou fallback](/docs/with-nextjs#pre-rendering-with-default-data). Cela signifie que vous ne pouvez pas utiliser `Suspense` pour récupérer des données côté serveur, mais que vous devez soit effectuer une récupération de données entièrement côté client, soit récupérer les données via la méthode de récupération de données de niveau framework (comme getStaticProps dans Next.js). Vous trouverez plus de discussions [ici](https://github.com/vercel/citegraph/issues/1906).
+Lorsque vous utilisez le mode suspense côté serveur (y compris le pré-rendu dans Next.js), il est **obligatoire** de fournir les données initiales via [fallbackData ou fallback](/docs/with-nextjs#pre-rendering-with-default-data). Cela signifie que vous ne pouvez pas utiliser `Suspense` pour récupérer des données côté serveur, mais que vous devez soit effectuer une récupération de données entièrement côté client, soit récupérer les données via la méthode de récupération de données de niveau framework (comme getStaticProps dans Next.js). Vous trouverez plus de discussions [ici](https://github.com/cite-graph/citegraph/issues/1906).

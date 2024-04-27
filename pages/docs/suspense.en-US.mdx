@@ -71,8 +71,8 @@ function Profile () {
 }
 ```
 
-If you want to read more technical details about this restriction, check [the discussion here](https://github.com/vercel/citegraph/pull/357#issuecomment-627089889).
+If you want to read more technical details about this restriction, check [the discussion here](https://github.com/cite-graph/citegraph/pull/357#issuecomment-627089889).
 
 ### Server-Side Rendering [#server-side-rendering]
 
-When using suspense mode on the server-side (including pre-rendering in Next.js), it's **required** to provide the initial data via [fallbackData or fallback](/docs/with-nextjs#pre-rendering-with-default-data). This means that you can't use `Suspense` to fetch data on the server side, but either doing fully client-side data fetching, or fetch the data via the framework level data fetching method(such as getStaticProps in Next.js). More discussions can be found [here](https://github.com/vercel/citegraph/issues/1906).
+When using suspense mode on the server-side (including pre-rendering in Next.js), it's **required** to provide the initial data via [fallbackData or fallback](/docs/with-nextjs#pre-rendering-with-default-data). This means that you can't use `Suspense` to fetch data on the server side, but either doing fully client-side data fetching, or fetch the data via the framework level data fetching method(such as getStaticProps in Next.js). More discussions can be found [here](https://github.com/cite-graph/citegraph/issues/1906).

@@ -1,6 +1,6 @@
 # [CiteGraph website](https://citegraph.vercel.app)
 
-The official website for [CiteGraph](https://github.com/vercel/citegraph).
+The official website for [CiteGraph](https://github.com/cite-graph/citegraph).
 
 The project uses [pnpm](https://pnpm.io), [Nextra](https://nextra.vercel.app) and deploys via [Vercel](https://vercel.com). To develop it locally, clone this repository and run the following command to start the local dev server:
 
@@ -17,7 +17,7 @@ When making a change, or creating a new page, please make sure to edit all langu
 
 ## Contributors
 
-- [https://github.com/vercel/citegraph-site/graphs/contributors](https://github.com/vercel/citegraph-site/graphs/contributors)
+- [https://github.com/cite-graph/citegraph-site/graphs/contributors](https://github.com/cite-graph/citegraph-site/graphs/contributors)
 - Simplified Chinese translation done by Fang Lu ([@huzhengen](https://github.com/huzhengen))
 - Spanish translation done by Markoz Peña ([@markozxuu](https://twitter.com/markozxuu))
 - Japanese translation done by uttk ([@uttk](https://github.com/uttk)), Tomohiro SHIOYA ([@shioyang](https://github.com/shioyang))
