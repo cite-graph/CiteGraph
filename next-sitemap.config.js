@@ -4,3 +4,4 @@ module.exports = {
     changefreq: "daily",
     generateRobotsTxt: true, // (optional)
   };
+  
