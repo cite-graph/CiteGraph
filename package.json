@@ -7,13 +7,13 @@
     "dev": "next",
     "debug": "NODE_OPTIONS='--inspect' next",
     "start": "next start",
-    "build": "next build",
-    "postbuild": "next-sitemap"
+    "build": "next build"
   },
   "author": "CiteGraph",
   "license": "MIT",
   "dependencies": {
     "@vercel/analytics": "^1.2.2",
+    "3d-force-graph": "^1.73.3",
     "focus-visible": "^5.2.0",
     "intersection-observer": "^0.12.2",
     "next": "^13.2.4",
@@ -22,7 +22,8 @@
     "nextra-theme-docs": "^2.13.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-intersection-observer": "^9.8.2"
+    "react-intersection-observer": "^9.10.1",
+    "three": "^0.164.1"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",
