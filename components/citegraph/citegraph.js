@@ -1,15 +1,22 @@
 import dynamic from 'next/dynamic'
-import {useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 
 // import ForceGraph3D from '3d-force-graph';
-import ForceGraph from "./forcegraph"
+// import ForceGraph from "./forcegraph"
 import {cloneUniformsGroups} from "three/src/renderers/shaders/UniformsUtils";
-// const ForceGraph = dynamic(() => import('./forcegraph'), {
-//     loading: () => <p>Loading...</p>,
-// })
+const ForceGraph = dynamic(() => import('./forcegraph'), {
+    ssr: false,
+    loading: () => <p>Loading...</p>,
+})
 
 export default function CiteGraph() {
+    const [wcontainer, setWcontainer] = useState(0);
+    const [hcontainer, setHcontainer] = useState(0);
     const wrapperRef = useRef();
+
+    useEffect(() => {
+        
+    }, [wcontainer, hcontainer]);
 
     const N = 300;
     const gData = {
@@ -22,11 +29,11 @@ export default function CiteGraph() {
             }))
     };
 
-    console.log('go here')
+    // console.log('go here')
     return (
-        <div ref={wrapperRef}>
+        <div ref={wrapperRef} className="w-full">
             h11
-            <ForceGraph wcontainer={500} hcontainer={500}/>
+            <ForceGraph wcontainer={900} hcontainer={500} data={gData}/>
         </div>
     )
 }
