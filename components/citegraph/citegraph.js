@@ -32,7 +32,7 @@ export default function CiteGraph() {
     // console.log('go here')
     return (
         <div ref={wrapperRef} className="w-full">
-            h11
+            {/* h11 */}
             <ForceGraph wcontainer={900} hcontainer={500} data={gData}/>
         </div>
     )

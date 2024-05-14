@@ -9,6 +9,10 @@ pnpm install
 pnpm dev
 ```
 
+```bash
+postbuild next-sitemap
+```
+
 And visit `localhost:3000` to preview your changes.
 
 ## Contributing

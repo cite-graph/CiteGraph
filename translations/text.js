@@ -17,7 +17,7 @@ export const languageMap = {
 
 /** @type {Readonly<Record<Locale, string>>} */
 export const titleMap = {
-  "en-US": "CiteGraph Hooks for Data Fetching",
+  "en-US": "Transfomer family",
   "es-ES": "Biblioteca CiteGraph Hooks para la obtención de datos",
   "fr-FR": "Bibliothèque de CiteGraph Hooks pour la récupération de données",
   "pt-BR": "CiteGraph Hooks para Data Fetching",
