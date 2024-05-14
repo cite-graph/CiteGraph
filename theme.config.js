@@ -43,7 +43,7 @@ const themeConfig = {
     const title = useLocalesMap(titleMap);
     return (
       <>
-        <Logo height={12} />
+        <Logo height={40} />
         <span
           className="mx-2 font-extrabold hidden md:inline select-none"
           title={`CiteGraph: ${title}`}
@@ -59,7 +59,7 @@ const themeConfig = {
     const titleSuffix = useLocalesMap(titleMap);
     const description = useLocalesMap(headDescriptionMap);
 
-    const imageUrl = new URL("https://citegraph-card.vercel.app");
+    const imageUrl = new URL("https://citegraph.vercel.app");
 
     if (!/\/index\.+/.test(route)) {
       imageUrl.searchParams.set("title", title || titleSuffix);
